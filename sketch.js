@@ -75,7 +75,7 @@ function draw() {
   noStroke();
   textAlign(CENTER, TOP);
   textSize(32);
-  text("414730936 陸柏安", width / 2, 30);
+  text("414730399 朱俊圻", width / 2, 30);
   textSize(24);
   text("作品為影像辨識_耳環臉譜", width / 2, 70);
 }
