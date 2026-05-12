@@ -1,82 +1,85 @@
-let capture;
+let video;
+let noCamera = false;
+let errorMsg = '';
 let faceMesh;
 let faces = [];
 
 function setup() {
-  // 1. 產生全螢幕畫布
   createCanvas(windowWidth, windowHeight);
-  
-  // 2. 擷取攝影機影像
-  capture = createCapture(VIDEO);
-  // 設定擷取影像的顯示大小為畫布寬高的 50%
-  capture.size(windowWidth * 0.5, windowHeight * 0.5);
-  // 隱藏預設產生的 DOM 影片元件，只在畫布上繪製
-  capture.hide();
 
-  // 載入 faceMesh 模型
-  faceMesh = ml5.faceMesh(capture, () => {
-    console.log("模型準備就緒！");
+  // 指定前鏡頭（手機預設可能是後鏡頭）
+  video = createCapture({ video: { facingMode: 'user' } }, onVideoReady);
+  video.elt.addEventListener('error', () => {
+    noCamera = true;
+    errorMsg = '無法開啟攝影機';
   });
-  // 開始持續偵測臉部
-  faceMesh.detectStart(capture, (results) => {
-    faces = results;
+  video.hide();
+}
+
+function onVideoReady() {
+  // video 準備好之後再初始化 faceMesh
+  faceMesh = ml5.faceMesh({ maxFaces: 1 }, () => {
+    faceMesh.detectStart(video, gotFaces);
   });
+}
+
+function gotFaces(results) {
+  faces = results;
 }
 
 function draw() {
-  // 3. 設定背景顏色為 #e7c6ff
   background('#e7c6ff');
 
-  // 在畫布上方置中顯示文字
-  fill(0); // 設定文字顏色為黑色
-  textSize(24); // 設定字體大小
-  textAlign(CENTER, TOP);
-  text("414730399朱俊圻", width / 2, 20);
-  text("作品為影像辨識_耳環臉譜", width / 2, 55);
+  if (noCamera) {
+    fill(80);
+    noStroke();
+    textAlign(CENTER, CENTER);
+    textSize(24);
+    text(errorMsg, width / 2, height / 2);
+    return;
+  }
 
-  // 4. 處理影像置中與左右顛倒
+  if (!video) return;
+
+  // 使用實際影像解析度做座標映射
+  let vw = video.elt.videoWidth || video.width;
+  let vh = video.elt.videoHeight || video.height;
+
   push();
-  // 將原點移至畫布中心
   translate(width / 2, height / 2);
-  // 水平翻轉（左右顛倒）
   scale(-1, 1);
-  
-  // 繪製影像，影像寬高為畫布寬高的 50%
   imageMode(CENTER);
-  image(capture, 0, 0, width * 0.5, height * 0.5);
+  image(video, 0, 0, width * 0.5, height * 0.5);
 
-  // 5. 辨識耳垂並畫出耳環
-  if (faces.length > 0) {
-    let face = faces[0];
-    // MediaPipe FaceMesh 中，索引 150 約為左耳垂，379 約為右耳垂
-    let leftEarlobe = face.keypoints[150];
-    let rightEarlobe = face.keypoints[379];
+  if (faces.length > 0 && vw > 0) {
+    // 177 右耳垂，401 左耳垂（MediaPipe FaceMesh 標準索引）
+    let earlobes = [faces[0].keypoints[177], faces[0].keypoints[401]];
 
-    drawEarring(leftEarlobe);
-    drawEarring(rightEarlobe);
+    fill(255, 255, 0);
+    noStroke();
+
+    for (let ear of earlobes) {
+      if (!ear) continue;
+
+      let x = map(ear.x, 0, vw, -width * 0.25, width * 0.25);
+      let y = map(ear.y, 0, vh, -height * 0.25, height * 0.25);
+
+      for (let i = 1; i <= 3; i++) {
+        circle(x, y + i * 15, 10);
+      }
+    }
   }
   pop();
-}
 
-/**
- * 在指定位置向下畫出三個黃色圓圈（耳環樣子）
- */
-function drawEarring(point) {
-  if (!point) return;
-  
-  // 將座標轉換為以畫布中心為原點的相對座標
-  let x = point.x - capture.width / 2;
-  let y = point.y - capture.height / 2;
-
-  fill('#ffff00'); // 黃色
+  fill(0);
   noStroke();
-  for (let i = 1; i <= 3; i++) {
-    // 每個圓圈向下偏移
-    circle(x, y + (i * 12), 10);
-  }
+  textAlign(CENTER, TOP);
+  textSize(32);
+  text("414730936 陸柏安", width / 2, 30);
+  textSize(24);
+  text("作品為影像辨識_耳環臉譜", width / 2, 70);
 }
 
 function windowResized() {
-  // 當視窗縮放時，同步更新畫布大小
   resizeCanvas(windowWidth, windowHeight);
 }
